@@ -1,0 +1,91 @@
+
+<style>
+	/* Top div header container */
+	#event_tech_survey_div{
+		text-align: center;
+		background-color: #F7F7F7;
+		border-radius: 5px;
+		border: 1px solid #15256A;
+		padding: 5px;
+	}
+	#event_tracker_top_div{
+		text-align: center;
+		background-color: #F7F7F7;
+		border-radius: 5px;
+		border: 1px solid #15256A;
+	}
+	#event_tracker_dashboard_header{
+		background-color: #15256A;
+		color: #FFFFFF;
+		border-radius: 5px;
+		padding: 5px;
+	}
+	#event_tracker_starts_in_p{
+		background-color: #B7DBF1;
+		border-radius: 5px;
+		padding: 5px;
+	}
+	.speaker-card{
+		background-color: #F7F7F7;
+		border: 1px solid #15256A;
+		padding: 16px;
+		border-radius: 5px;
+		box-sizing: border-box;
+	}
+	.no-response{
+		background-color: #fcf151;
+		border: 1px solid #fcf151;
+	}
+	.speaker-grid{
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: 24px;
+		margin-top: 30px;
+	}
+	.speaker_name{
+		margin-top: 0px !important;
+	}
+	.role_top_box{
+		background-color: #15256A;
+		border: 1px solid #FFFFFF;
+		color: #FFFFFF;
+		padding: 1px 4px 1px 4px;
+		border-radius: 5px;
+		float: right;
+	}
+	.organizer_highlight{
+		background-color: #FFFFFF;
+		border: 1px solid #15256A;
+		color: #15256A;
+	}
+	.follow_up_btn{
+		background-color: black;
+		border: 1px solid black;
+		color: #FFFFFF !important;
+		font-weight: bold;
+		float: bottom;
+		padding: 1px 4px 1px 4px;
+		border-radius: 5px;
+		text-decoration: none;
+		font-size: 14px;
+	}
+	.follow_up_btn:hover{
+		background-color: #0B6623;
+		border: 1px solid #0B6623;
+	}
+	#speaker_stats{
+		text-align: center;
+		background-color: #F7F7F7;
+		border-radius: 5px;
+		border: 1px solid #15256A;
+	}
+	.no_response{
+		background-color: red;
+	}
+	.tech_link{
+		color: #FFFFFF !important;
+	}
+	.follow_up_details_link{
+		color: #000 !important;
+	}
+</style>
