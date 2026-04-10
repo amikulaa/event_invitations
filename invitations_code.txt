@@ -1,0 +1,422 @@
+/* ==========================================================
+   SHORTCODE: Get the chosen events invite tracker
+   Usage:
+      [VALUE_HIDDEN_FOR_SECURITY]
+   Notes:
+      - VALUE_HIDDEN_FOR_SECURITY
+========================================================== */
+
+function get_invite_tracker_for_event() {
+
+    // Prevent execution in editor preview
+    if (is_admin() && !wp_doing_ajax()) {
+        return "<!-- event_tracker shortcode suppressed in editor -->";
+	}
+
+    if (!isset($_GET['postid'])) {
+        return '';
+    }
+
+    $postid = intval($_GET['postid']);
+    if (!$postid) {
+        return '';
+    }
+	
+	if(!class_exists('VALUE_HIDDEN_FOR_SECURITY')){
+		return 'CRITICAL ERRROR - VALUE_HIDDEN_FOR_SECURITY';
+	}
+
+	//must start with
+    ob_start();
+
+	//base vars
+	$date_passed_icon = '<i class="far fa-calendar-check"></i>';
+	$date_not_passed_icon = '<i class="fas fa-calendar"></i>';
+    //body code
+    $output_dashboard = false;
+    $program_code = get_field("VALUE_HIDDEN_FOR_SECURITY", $postid) ?? 'no code found';
+	if(!isset($program_code) || empty($program_code) || $program_code === 'no code found'){
+		echo "<p>The event you selected does not have an associated program code.</p>";
+		echo "<p>Please set the program code, and try again.</p>";
+	} else {
+		//base vars
+		$today = strtotime("now");
+		$is_future = true;
+    		$output_dashboard = true;
+		$event = get_post($postid);
+		$program_title = $event->post_title ?? 'No Title Found';
+		$program_start_date = get_post_meta($postid, 'HIDDEN', true) ?? 'No Start Date';
+		$program_end_date = get_post_meta($postid, 'HIDDEN', true) ?? 'No End Date';
+		//is this event in the future, or past...
+		if(strtotime($program_start_date) <= $today){
+			$is_future = false;
+		}
+		if($is_future){
+			$days_away = abs(round(($today - strtotime($program_start_date)) / 86400));
+			$weeks_away = abs(round(($today - strtotime($program_start_date)) / 604800));
+		}
+		//organizer information link
+		$org_info_link = "VALUE_HIDDEN_FOR_SECURITY";
+		echo "<p><a href='$org_info_link' target='_blank' style='float:right; padding: 5px;'>Organizer Information</a></p>";
+		echo "<br/><br/>";
+		//Event Base Info
+		echo "<div id='event_tracker_top_div'>";
+		echo "<h3 id='event_tracker_dashboard_header'><strong>" . $program_title . "</strong></h3>";
+		echo "<input id='event_tracker_postid' type='text' value='$postid' hidden/>";
+		echo '<br>';
+		echo "<p><strong>Program Code: </strong>$program_code&emsp;&emsp;";
+		echo "<strong>Program Start: </strong>$program_start_date&emsp;&emsp;";
+		echo "<strong>Program End: </strong>$program_end_date</p>";
+		if($is_future){
+			echo "<p id='event_tracker_starts_in_p'><strong>STARTS IN:&emsp;&emsp;<u>$days_away</u> DAYS</strong>&emsp;&emsp;<strong><u>$weeks_away</u> WEEKS</strong></p>";
+		}
+		echo "</div>";
+		
+		//HIDE send speaker survey, for now...
+		echo "<div id='event_tech_survey_div'>";
+		$speaker_tech_link = "VALUE_HIDDEN_FOR_SECURITY" . $postid;
+		echo "<a target='_blank' id='send_tech_links' href=$speaker_tech_link>SEND SPEAKER CONSTRAINT SURVEYS</a>";
+		echo "</div>";
+	}
+	
+	//output dashboard of speakers
+	if($output_dashboard){
+		$output = get_speaker_boxes($postid);
+		echo $output;
+	}
+	
+	//must end with
+    return ob_get_clean();
+}
+add_shortcode('VALUE_HIDDEN_FOR_SECURITY', 'get_invite_tracker_for_event');
+
+function get_speaker_boxes($postid){
+	if(!isset($postid) || empty($postid)){
+        return 'ERROR: postid empty';
+	}
+	
+	$program_code = get_field("VALUE_HIDDEN_FOR_SECURITY", $postid);
+    if (empty($program_code)) {
+        return 'ERROR: program code empty';
+    }
+
+    global $wpdb;
+	
+	// ---------- Numeric field IDs ----------
+    $program_field = VALUE_HIDDEN_FOR_SECURITY; // program code in speaker form
+    $first_name_field = VALUE_HIDDEN_FOR_SECURITY;
+    $last_name_field = VALUE_HIDDEN_FOR_SECURITY;
+	$role_field = VALUE_HIDDEN_FOR_SECURITY;
+    $affiliation_field = VALUE_HIDDEN_FOR_SECURITY;
+    $email_field = VALUE_HIDDEN_FOR_SECURITY;
+    $parent_key_field = VALUE_HIDDEN_FOR_SECURITY; // field in response storing speaker item_key
+    $response_last_name_field = VALUE_HIDDEN_FOR_SECURITY; // field in responses storing last name
+	$response_value_field = VALUE_HIDDEN_FOR_SECURITY;
+	$token_field = VALUE_HIDDEN_FOR_SECURITY;
+    $speakers_form = VALUE_HIDDEN_FOR_SECURITY;
+    $responses_form = VALUE_HIDDEN_FOR_SECURITY;
+
+    // ---------- SQL: speakers + grouped responses ----------
+    $sql = $wpdb->prepare("SELECT
+      s.id AS speaker_id,
+      s.item_key,
+      fn.meta_value AS first_name,
+      ln.meta_value AS last_name,
+      tok.meta_value AS token,
+      rl.meta_value AS role,
+      aff.meta_value AS affiliation,
+      em.meta_value AS email,
+	  SUBSTRING_INDEX(GROUP_CONCAT(accept.meta_value ORDER BY r.id DESC), ',', 1) AS invite_response,
+      GROUP_CONCAT(r.id ORDER BY r.id DESC) AS response_ids,
+      GROUP_CONCAT(r.created_at ORDER BY r.id DESC) AS response_times,
+      COUNT(DISTINCT r.id) AS response_count
+    FROM {$wpdb->prefix}HIDDEN s
+    INNER JOIN {$wpdb->prefix}HIDDEN pc
+      ON pc.item_id = s.id AND pc.field_id = %d AND pc.meta_value = %s
+    LEFT JOIN {$wpdb->prefix}HIDDEN fn
+      ON fn.item_id = s.id AND fn.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN ln
+      ON ln.item_id = s.id AND ln.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN tok
+      ON tok.item_id = s.id AND tok.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN rl
+      ON rl.item_id = s.id AND rl.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN aff
+      ON aff.item_id = s.id AND aff.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN em
+      ON em.item_id = s.id AND em.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN rp
+      ON rp.meta_value = s.item_key AND rp.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN r
+      ON r.id = rp.item_id AND r.form_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN resp_ln
+      ON resp_ln.item_id = r.id AND resp_ln.field_id = %d
+    LEFT JOIN {$wpdb->prefix}HIDDEN accept
+      ON accept.item_id = r.id AND accept.field_id = %d
+    WHERE s.form_id = %d AND s.is_draft = 0
+    GROUP BY s.id
+    ORDER BY (response_count = 0) DESC, ln.meta_value ASC, fn.meta_value ASC", $program_field, $program_code, $first_name_field, $last_name_field, $token_field, $role_field, $affiliation_field, $email_field, $parent_key_field, $responses_form, $response_last_name_field, $response_value_field, $speakers_form);
+
+    $rows = $wpdb->get_results($sql);
+
+    if (empty($rows)) {
+        return 'No speaker invitations found...';
+    }
+
+    // ---------- Build HTML grid ----------
+    $responses_not_received = 0;
+    $responses_received = 0;
+    $acceptances = 0;
+    $declines = 0;
+	$speaker_count = 0;
+    $output = '<div class="speaker-grid">';
+    foreach ($rows as $row) {
+        $responses = !empty($row->response_ids) ? explode(',', $row->response_ids) : [];
+        $times = !empty($row->response_times) ? explode(',', $row->response_times) : [];
+        $card_class = $row->response_count == 0 ? 'speaker-card no-response' : 'speaker-card';
+		if(!empty($row->invite_response)){
+			if($row->invite_response == 'Yes'){
+				$card_class .= ' yes_response';
+				$acceptances++;
+			} elseif($row->invite_response == 'No') {
+				$card_class .= ' no_response';
+				$declines++;
+			}
+		}
+        $output .= '<div class="' . esc_attr($card_class) . '">';
+		
+		$is_org = false;
+		$credentials = "VALUE_HIDDEN_FOR_SECURITY" . $row->item_key;
+		$tech_link = "VALUE_HIDDEN_FOR_SECURITY" . $credentials;
+		$invite_link = "VALUE_HIDDEN_FOR_SECURITY" . $credentials;
+		//invite link
+        $output .= "<p class=''><em><a target='_blank' href=$invite_link class=''>Invitation Link</a></em></p>";
+		if(!empty($row->role)){
+			$role_class = "role_top_box";
+			if($row->role == 'Organizer'){
+				$role_class .= " organizer_highlight";
+				$is_org = true;
+			} 
+        	$output .= "<p class='$role_class'><em>" . esc_html($row->role) . '</em></p>';
+		}
+		//show tech survey link for yes responses and not organizer
+		if(!empty($row->invite_response)){
+			if($row->invite_response == 'Yes' && !$is_org){
+				$speaker_count++;
+        		$output .= "<p class='$role_class'><em><a target='_blank' href=$tech_link class='tech_link'><i class='fas fa-chalkboard-teacher'></i></a></em></p>";
+			}
+		}
+        $output .= '<h3 class="speaker_name">' . esc_html($row->first_name . ' ' . $row->last_name) . '</h3>';
+		
+		if (!empty($row->email)) {
+            $output .= '<p><em>' . esc_html($row->email) . '</em></p>';
+        }
+		
+        if (!empty($row->affiliation)) {
+            $output .= '<p>' . esc_html($row->affiliation) . '</p>';
+        }
+		
+		if(!empty($row->invite_response)){
+			if($row->invite_response == 'Yes'){
+            	$output .= '<p style="color: green;"><b>YES</b></p>';
+			} elseif($row->invite_response == 'No') {
+            	$output .= '<p style="color: #ffffff;"><b>NO</b></p>';
+			}
+		}
+		
+        if (!empty($responses)) {
+			$responses_received++;
+            $output .= '<div class="speaker-responses">';
+			$response_count = 0;
+            foreach ($responses as $i => $resp) {
+				$response_count++;
+				$time = $times[$i] ?? '';
+				if($time){
+					$dt = new DateTime($time, new DateTimeZone('UTC'));
+					$dt->setTimezone(new DateTimeZone('America/Chicago'));
+					$time = $dt->format('M jS, Y \a\t g:i A');
+				}
+				$rlink = "VALUE_HIDDEN_FOR_SECURITY" . $resp;
+                $output .= "<p><a href='$rlink' target='_blank'>$time</a></p>";
+            }
+            $output .= '</div>';
+        } else {
+			$responses_not_received++;
+			$entry_id = $row->speaker_id;
+            $output .= '<p style="color: red;"><b>NO INVITATION RESPONSE</b></p>';
+			$follow_link = "VALUE_HIDDEN_FOR_SECURITY" . $entry_id;
+            $output .= "<a class='follow_up_btn' target='_blank' href=$follow_link>SEND FOLLOW UP EMAIL</a>";
+			$follow_up = get_most_recent_follow_up($entry_id);
+			if($follow_up !== false && is_array($follow_up)){
+				$follow_up_entry = $follow_up[0] ?? '';
+				$follow_up_time = $follow_up[1] ?? '';
+				$follow_up_details_link = "VALUE_HIDDEN_FOR_SECURITY" . $follow_up_entry;
+				$follow_up_a = "<a target='_blank' class='follow_up_details_link' href=$follow_up_details_link>$follow_up_time</a>";
+				if(!empty($follow_up_entry) && !empty($follow_up_time)){
+            		$output .= "<p><em>Last followed up on:<br/>$follow_up_a</em></p>";
+				}
+			}
+        }
+
+        $output .= '</div>'; // .speaker-card
+    }
+    $output .= '</div>'; // .speaker-grid
+	
+	//manage stats
+    $top_output = "<div id='speaker_stats'>";
+    $top_output .= "<p><b>Invitations Sent:</b> <u>" . count($rows) . "</u>";
+	$top_output .= "&emsp;&emsp;<b>Awaiting Response:</b> <u>" . $responses_not_received . "</u></p>";
+	$top_output .= "<p><b>Reponses Received:</b> <u>" . $responses_received . "</u>";
+	$top_output .= "&emsp;&emsp;<b>Acceptances:</b> <u>" . $acceptances . "</u>";
+	$top_output .= "&emsp;&emsp;<b>Speaker Acceptances:</b> <u>" . $speaker_count . "</u>";
+	$top_output .= "&emsp;&emsp;<b>Declines:</b> <u>" . $declines . "</u></p>";
+    $top_output .= "</div>";
+	
+	$total_output = $top_output . $output;
+    return $total_output;
+}
+
+function send_follow_up_email() {
+	ob_start();
+	$valid_entry = false;
+	if(!isset($_GET['entry'])){
+		echo "<p><b>You seem to have reached this page in error, exit now.</b></p><br/>";
+	} else {
+		$entry_id = sanitize_text_field($_GET['entry']);
+		if(!empty($entry_id)){
+			$entry_obj = FrmEntry::getOne($entry_id, true);
+			if($entry_obj){
+				//main driver area
+				$entry_arr = $entry_obj->metas;
+				if(!empty($entry_arr)){
+					$valid_entry = true;
+					date_default_timezone_set('America/Chicago');
+					$today = time();
+					$TIMESTAMP = date('M jS, Y \a\t g:i A', $today);
+					$one_week_future = new DateTime("+1 week");
+					//formidable date format: m/d/Y
+					$one_week_formatted = $one_week_future->format('m/d/Y');
+					//get metas
+					$fn = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //first name
+					$ln = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //last name
+					$email = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //email
+					$program_title = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //program title
+					$program_url = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //url
+					$event_dates = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //event dates
+					$cc = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //cc
+					$bcc = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //bcc
+					$role = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //role
+					$just_role_lc = "a speaker";
+					$just_role = $role;
+					if($role == 'Speaker'){
+						$role = "speak at";
+					} else if($role == 'Organizer'){
+						$role = "organize";
+						$just_role_lc = "an organizer";
+					} else {
+						$role = $role . " at";
+					}
+					$token = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //token
+					$key = $entry_obj->item_key ?? ''; //entry key
+					//set up link
+					$credentials = "VALUE_HIDDEN_FOR_SECURITY" . $key;
+					$invite_link = "VALUE_HIDDEN_FOR_SECURITY" . $credentials;
+					//set up program title link
+					$program_link = $program_url;
+					//set metas
+					//REST IS HIDDEN for security, it just filled values and showed form
+				} 
+			} 
+		}
+		if(!$valid_entry){
+			echo "<p><b>Invalid entry ID.</b></p><br/>";
+		}
+	}
+    return ob_get_clean();
+}
+add_shortcode('VALUE_HIDDEN_FOR_SECURITY', 'send_follow_up_email');
+
+function get_role_from_entry($entry_id){
+	$entry_id = sanitize_text_field($entry_id);
+	$role = '';
+	if(!empty($entry_id)){
+		$entry_obj = FrmEntry::getOne($entry_id, true);
+		if($entry_obj){
+			//main driver area
+			$entry_arr = $entry_obj->metas;
+			if(!empty($entry_arr)){
+				$role = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? ''; //46 role
+			}
+		}
+	}
+	return $role;
+}
+
+function get_link_from_entry($entry_id){
+	$entry_id = sanitize_text_field($entry_id);
+	$link = '';
+	if(!empty($entry_id)){
+		$entry_obj = FrmEntry::getOne($entry_id, true);
+		if($entry_obj){
+			//main driver area
+			$entry_arr = $entry_obj->metas;
+			if(!empty($entry_arr)){
+				$token = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? '';
+				$key = VALUE_HIDDEN_FOR_SECURITY ?? '';
+				if(!empty($token) && !empty($key)){
+					$credentials = VALUE_HIDDEN_FOR_SECURITY . $key;
+					$link = "VALUE_HIDDEN_FOR_SECURITY" . $credentials;
+				}
+			}
+		}
+	}
+	return $link;
+}
+
+function get_eventdates_from_entry($entry_id){
+	$entry_id = sanitize_text_field($entry_id);
+	$event_dates = '';
+	if(!empty($entry_id)){
+		$entry_obj = FrmEntry::getOne($entry_id, true);
+		if($entry_obj){
+			//main driver area
+			$entry_arr = $entry_obj->metas;
+			if(!empty($entry_arr)){
+				$event_dates = $entry_arr[VALUE_HIDDEN_FOR_SECURITY] ?? '';
+			}
+		}
+	}
+	return $event_dates;
+}
+
+function get_most_recent_follow_up($entry_id){
+	if(!isset($entry_id) || empty($entry_id)){
+        return false;
+	}
+	global $wpdb;
+	$form_id = VALUE_HIDDEN_FOR_SECURITY;
+	$timestamp_field_id = VALUE_HIDDEN_FOR_SECURITY;
+	$entry_field_id = VALUE_HIDDEN_FOR_SECURITY; 
+	//sql
+	$last_followup = $wpdb->get_row(
+		$wpdb->prepare("
+		SELECT 
+			im2.item_id,
+			im2.meta_value
+		FROM {$wpdb->prefix}HIDDEN AS i
+		INNER JOIN {$wpdb->prefix}HIDDEN AS im1
+			ON i.id = im1.item_id AND im1.field_id = %d AND im1.meta_value = %d
+		INNER JOIN {$wpdb->prefix}HIDDEN AS im2
+			ON i.id = im2.item_id AND im2.field_id = %d
+		WHERE i.form_id = %d
+		ORDER BY im2.meta_value DESC
+		LIMIT 1
+		", $entry_field_id, $entry_id, $timestamp_field_id, $form_id),
+		ARRAY_N
+	);
+	
+	if($last_followup){
+		return $last_followup;
+	}
+	return false;
+}
