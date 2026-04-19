@@ -14,6 +14,7 @@ Staff can send invitations to speakers and organizers, each with a unique link, 
 
 ## Tech Stack
 - PHP
+- HTML
 - JavaScript
 - SQL / MySQL
 - WordPress (Formidable Forms integration)
